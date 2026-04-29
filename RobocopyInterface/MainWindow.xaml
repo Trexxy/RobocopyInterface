@@ -1,0 +1,172 @@
+<Window x:Class="RobocopyHelper.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:RobocopyHelper.ViewModels"
+        mc:Ignorable="d"
+        Title="Robocopy Helper"
+        Height="620" Width="820" MinHeight="480" MinWidth="600"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- Sources label -->
+            <RowDefinition Height="*" MinHeight="80"/>  <!-- Sources list -->
+            <RowDefinition Height="Auto"/>   <!-- Add buttons -->
+            <RowDefinition Height="Auto"/>   <!-- Destination row -->
+            <RowDefinition Height="2*" MinHeight="120"/> <!-- Log output -->
+            <RowDefinition Height="Auto"/>   <!-- Progress + action button -->
+        </Grid.RowDefinitions>
+
+        <!-- Sources label -->
+        <TextBlock Grid.Row="0"
+                   Text="Sources"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,4"/>
+
+        <!-- Sources list -->
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding Sources}"
+                 IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                 Margin="0,0,0,4"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="4,2"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Content="✕"
+                                Width="22" Height="22"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Command="{Binding DataContext.RemoveSourceCommand,
+                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                CommandParameter="{Binding}"/>
+                        <TextBlock Text="{Binding}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Add buttons -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,0,0,10">
+            <Button Content="+ Add Folder"
+                    Command="{Binding AddFolderCommand}"
+                    IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                    Padding="10,4"
+                    Margin="0,0,6,0"/>
+            <Button Content="+ Add File"
+                    Command="{Binding AddFileCommand}"
+                    IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                    Padding="10,4"/>
+        </StackPanel>
+
+        <!-- Destination row -->
+        <DockPanel Grid.Row="3" Margin="0,0,0,10">
+            <TextBlock Text="Destination"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"/>
+            <Button DockPanel.Dock="Right"
+                    Content="Browse"
+                    Command="{Binding BrowseDestinationCommand}"
+                    IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                    Padding="10,4"
+                    Margin="6,0,0,0"/>
+            <TextBox Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}"
+                     IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                     VerticalContentAlignment="Center"
+                     Padding="4,2"/>
+        </DockPanel>
+
+        <!-- Log output -->
+        <GroupBox Grid.Row="4" Header="Output" Margin="0,0,0,10">
+            <ScrollViewer x:Name="LogScrollViewer"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto">
+                <TextBox x:Name="LogTextBox"
+                         Text="{Binding LogText, Mode=OneWay}"
+                         IsReadOnly="True"
+                         TextWrapping="NoWrap"
+                         FontFamily="Consolas"
+                         FontSize="12"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="4"/>
+            </ScrollViewer>
+        </GroupBox>
+
+        <!-- Two progress bars + Start/Cancel button -->
+        <Grid Grid.Row="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80"/>   <!-- Labels -->
+                <ColumnDefinition Width="*"/>    <!-- Bars -->
+                <ColumnDefinition Width="Auto"/> <!-- Button spans both rows -->
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0"
+                       Text="Overall"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,4"/>
+            <ProgressBar Grid.Row="0" Grid.Column="1"
+                         Value="{Binding OverallProgress}"
+                         Minimum="0" Maximum="100"
+                         Height="22"
+                         Margin="0,0,10,4"/>
+
+            <!-- "Current file" label with copy speed stacked below -->
+            <StackPanel Grid.Row="1" Grid.Column="0"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0">
+                <TextBlock Text="Current file"/>
+                <TextBlock Text="{Binding CopySpeed}"
+                           FontSize="10"
+                           Foreground="Gray"/>
+            </StackPanel>
+
+            <!-- Progress bar with percentage text overlaid in the centre -->
+            <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,10,0">
+                <ProgressBar Value="{Binding CurrentFileProgress}"
+                             Minimum="0" Maximum="100"
+                             Height="22"/>
+                <TextBlock Text="{Binding CurrentFileProgress, StringFormat={}{0:F1}%}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           IsHitTestVisible="False"/>
+            </Grid>
+
+            <!-- Single button: content and command swap based on IsSyncing -->
+            <Button Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"
+                    Padding="16,0" MinWidth="100" VerticalAlignment="Stretch">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Content" Value="Start Sync"/>
+                        <Setter Property="Command" Value="{Binding StartSyncCommand}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSyncing}" Value="True">
+                                <Setter Property="Content" Value="Cancel"/>
+                                <Setter Property="Command" Value="{Binding CancelSyncCommand}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>

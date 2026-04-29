@@ -1,0 +1,32 @@
+# Build output
+bin/
+obj/
+build_check/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+nuget.config
+
+# Rider / JetBrains
+*.DotSettings.user
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude
+.claude
