@@ -57,21 +57,27 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- Add buttons -->
-        <StackPanel Grid.Row="2"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="0,0,0,10">
-            <Button Content="+ Add Folder"
-                    Command="{Binding AddFolderCommand}"
-                    IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
-                    Padding="10,4"
-                    Margin="0,0,6,0"/>
-            <Button Content="+ Add File"
-                    Command="{Binding AddFileCommand}"
+        <!-- Add / Clear buttons -->
+        <DockPanel Grid.Row="2" Margin="0,0,0,10">
+            <Button DockPanel.Dock="Left"
+                    Content="Clear"
+                    Command="{Binding ClearSourcesCommand}"
                     IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
                     Padding="10,4"/>
-        </StackPanel>
+            <StackPanel DockPanel.Dock="Right"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="+ Add Folder"
+                        Command="{Binding AddFolderCommand}"
+                        IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                        Padding="10,4"
+                        Margin="0,0,6,0"/>
+                <Button Content="+ Add File"
+                        Command="{Binding AddFileCommand}"
+                        IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
+                        Padding="10,4"/>
+            </StackPanel>
+        </DockPanel>
 
         <!-- Destination row -->
         <DockPanel Grid.Row="3" Margin="0,0,0,10">

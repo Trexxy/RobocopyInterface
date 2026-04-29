@@ -6,11 +6,18 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 
 namespace RobocopyInterface.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private static readonly string SettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "RobocopyInterface", "settings.json");
+
+    private record Settings(List<string> Sources, string Destination);
+
     private readonly RobocopyRunner _runner;
     private readonly StringBuilder _logBuilder = new();
     private CancellationTokenSource? _cts;
@@ -46,7 +53,34 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(RobocopyRunner runner)
     {
         _runner = runner;
-        Sources.CollectionChanged += (_, _) => StartSyncCommand.NotifyCanExecuteChanged();
+        Sources.CollectionChanged += (_, _) => { StartSyncCommand.NotifyCanExecuteChanged(); SaveSettings(); };
+        LoadSettings();
+    }
+
+    partial void OnDestinationChanged(string value) => SaveSettings();
+
+    private void LoadSettings()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath)) return;
+            var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsPath));
+            if (settings is null) return;
+            foreach (var s in settings.Sources)
+                Sources.Add(s);
+            Destination = settings.Destination;
+        }
+        catch { }
+    }
+
+    private void SaveSettings()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings([.. Sources], Destination)));
+        }
+        catch { }
     }
 
     [RelayCommand]
@@ -74,6 +108,9 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void RemoveSource(string path) => Sources.Remove(path);
+
+    [RelayCommand]
+    private void ClearSources() => Sources.Clear();
 
     [RelayCommand]
     private void BrowseDestination()

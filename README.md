@@ -10,7 +10,8 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 
 ## Features
 
-- Add any number of source **files** and/or **folders** to sync
+- Add any number of source **files** and/or **folders** to sync; click **Clear** to remove all sources at once
+- Sources and destination are **remembered between restarts** (saved to `%AppData%\RobocopyInterface\settings.json`)
 - Choose a destination folder via a folder picker dialog
 - Live scrolling log output showing what Robocopy is doing
 - **Two progress bars:**
@@ -21,12 +22,14 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 
 ## Usage
 
-1. Click **+ Add Folder** or **+ Add File** to add one or more sources.
+1. Click **+ Add Folder** or **+ Add File** to add one or more sources. Click **Clear** to remove them all.
    - Folders are synced recursively into a same-named subfolder inside the destination.
    - Files are copied directly into the destination folder.
 2. Set the **Destination** by typing a path or clicking **Browse**.
 3. Click **Start Sync**. The log, progress bars, and speed indicator update in real time.
 4. Click **Cancel** to stop the sync at any time.
+
+Sources and destination are saved automatically and restored on next launch.
 
 ## How it works
 
