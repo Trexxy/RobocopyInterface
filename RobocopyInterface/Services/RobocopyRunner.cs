@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace RobocopyHelper.Services;
+namespace RobocopyInterface.Services;
 
 public class RobocopyRunner
 {
@@ -20,6 +20,23 @@ public class RobocopyRunner
         new(@"\b(?:New File|Newer|Older|Changed)\b\s+(\d[\d,]*(?:\.\d+)?)\s*([kKmMgGtT]?)\b",
             RegexOptions.Compiled);
 
+    // Matches the Robocopy summary "Files :" line to extract the copied and skipped counts.
+    // Example: "   Files :         7         3         4         0         0         0"
+    // Groups: 1=Copied, 2=Skipped
+    private static readonly Regex FilesSummaryLine =
+        new(@"^\s*Files\s*:\s*\d[\d,]*\s+(\d[\d,]*)\s+(\d[\d,]*)", RegexOptions.Compiled);
+
+    // Matches the Robocopy summary "Bytes :" line header.
+    // Example: "   Bytes :   1.073 g  230.5 m  794.0 m         0         0         0"
+    private static readonly Regex BytesSummaryLine =
+        new(@"^\s*Bytes\s*:", RegexOptions.Compiled);
+
+    // Tokenises individual numeric fields in a summary line.
+    // Each field is a number (with optional thousand-separators/decimal point)
+    // followed optionally by a space and a single unit letter (k/m/g/t).
+    private static readonly Regex SummaryValueToken =
+        new(@"(\d[\d,.]*)\s*([kKmMgGtT]?)", RegexOptions.Compiled);
+
     // How long to keep samples for the rolling average.
     private static readonly TimeSpan SpeedWindow = TimeSpan.FromSeconds(3);
     // Minimum time between speed updates pushed to the UI.
@@ -33,16 +50,35 @@ public class RobocopyRunner
     // Each entry is (timestamp, bytes transferred in that sample).
     private readonly Queue<(DateTime Time, double Bytes)> _speedSamples = new();
 
+    // File-count and byte-size tracking for the overall progress indicator.
+    private int _totalFiles;
+    private long _totalBytes;
+    private int _runningFilesDone;        // Cumulative across all completed sources
+    private long _runningBytesTransferred;
+    private int _sourceFilesDone;         // Files announced (being copied) in the current source
+    private long _sourceBytesTransferred;
+    private int _sourceSkippedFiles;      // From summary: files already up-to-date
+    private long _sourceSkippedBytes;
+    private IProgress<(int filesDone, int filesTotal, long bytesDone, long bytesTotal)>? _fileCountProgress;
+
     public async Task RunAsync(
         IReadOnlyList<string> sources,
         string destination,
+        int totalFiles,
+        long totalBytes,
         IProgress<string> logProgress,
-        IProgress<double> overallProgress,
+        IProgress<(int filesDone, int filesTotal, long bytesDone, long bytesTotal)> fileCountProgress,
         IProgress<double> fileProgress,
         IProgress<string> speedProgress,
         CancellationToken ct)
     {
-        overallProgress.Report(0);
+        _totalFiles = totalFiles;
+        _totalBytes = totalBytes;
+        _runningFilesDone = 0;
+        _runningBytesTransferred = 0;
+        _fileCountProgress = fileCountProgress;
+
+        fileCountProgress.Report((0, totalFiles, 0, totalBytes));
         fileProgress.Report(0);
         speedProgress.Report(string.Empty);
 
@@ -55,7 +91,6 @@ public class RobocopyRunner
             if (!Path.Exists(source))
             {
                 logProgress.Report($"[SKIP] Source not found: {source}");
-                overallProgress.Report((double)(i + 1) / sources.Count * 100);
                 continue;
             }
 
@@ -82,10 +117,17 @@ public class RobocopyRunner
             fileProgress.Report(0);
             speedProgress.Report(string.Empty);
             _currentFileBytes = 0;
+            _sourceFilesDone = 0;
+            _sourceBytesTransferred = 0;
+            _sourceSkippedFiles = 0;
+            _sourceSkippedBytes = 0;
 
             await RunProcessAsync(args, logProgress, fileProgress, speedProgress, ct);
 
-            overallProgress.Report((double)(i + 1) / sources.Count * 100);
+            // After the process drains, fold in skipped (already-up-to-date) counts from the summary.
+            _runningFilesDone += _sourceFilesDone + _sourceSkippedFiles;
+            _runningBytesTransferred += _sourceBytesTransferred + _sourceSkippedBytes;
+            fileCountProgress.Report((_runningFilesDone, totalFiles, _runningBytesTransferred, totalBytes));
             fileProgress.Report(0);
         }
 
@@ -213,6 +255,34 @@ public class RobocopyRunner
             _speedSamples.Clear();
             // Clear the displayed speed immediately when a new file starts.
             speedProgress?.Report(string.Empty);
+
+            // Count this file, accumulate its size, and report live progress.
+            _sourceBytesTransferred += _currentFileBytes;
+            _sourceFilesDone++;
+            if (_totalFiles > 0)
+                _fileCountProgress?.Report((
+                    _runningFilesDone + _sourceFilesDone,
+                    _totalFiles,
+                    _runningBytesTransferred + _sourceBytesTransferred,
+                    _totalBytes));
+        }
+        else
+        {
+            // Robocopy summary "Files :" — capture skipped file count.
+            var filesSummary = FilesSummaryLine.Match(line);
+            if (filesSummary.Success)
+            {
+                _sourceSkippedFiles = int.Parse(filesSummary.Groups[2].Value.Replace(",", ""), CultureInfo.InvariantCulture);
+            }
+            // Robocopy summary "Bytes :" — capture skipped byte count.
+            // Fields: Total, Copied, Skipped, Mismatch, FAILED, Extras (indices 0–5).
+            else if (BytesSummaryLine.IsMatch(line))
+            {
+                var colonIdx = line.IndexOf(':');
+                var tokens = SummaryValueToken.Matches(line, colonIdx + 1);
+                if (tokens.Count >= 3)
+                    _sourceSkippedBytes = ParseFileBytes(tokens[2].Groups[1].Value, tokens[2].Groups[2].Value);
+            }
         }
 
         logProgress.Report(line);

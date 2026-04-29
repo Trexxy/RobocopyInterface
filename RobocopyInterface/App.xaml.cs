@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RobocopyHelper.Services;
-using RobocopyHelper.ViewModels;
+using RobocopyInterface.Services;
+using RobocopyInterface.ViewModels;
 using System.Windows;
 
-namespace RobocopyHelper;
+namespace RobocopyInterface;
 
 public partial class App : Application
 {

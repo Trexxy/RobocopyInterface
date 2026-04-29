@@ -1,4 +1,4 @@
-# RobocopyHelper
+# RobocopyInterface
 
 A Windows desktop application that provides a graphical interface for [Robocopy](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy), making it easy to sync multiple files and folders to a destination with live progress feedback.
 
@@ -14,7 +14,7 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 - Choose a destination folder via a folder picker dialog
 - Live scrolling log output showing what Robocopy is doing
 - **Two progress bars:**
-  - *Overall* — advances once per completed source
+  - *Overall* — shows `X / Y files` synced in the bar and `A / B` size transferred below the label. Y and B are pre-scanned from all sources before the sync starts. X and A increment live as each file is copied; already-up-to-date (skipped) files are added in a batch at the end of each source using the `Files :` and `Bytes :` counts from Robocopy's summary output.
   - *Current file* — shows 0–100% for the file currently being copied, with the percentage printed inside the bar
 - **Copy speed indicator** — shows a rolling average (over 3 seconds) of the current transfer rate in B/s, KB/s, MB/s, or GB/s; updates every 2 seconds to prevent flickering; clears between files
 - Cancel a running sync at any time
@@ -53,7 +53,7 @@ Robocopy exit codes 0–7 indicate success or partial success (files skipped/ext
 ## Architecture
 
 ```
-RobocopyHelper/
+RobocopyInterface/
   App.xaml / App.xaml.cs          — Generic host setup and DI registration
   MainWindow.xaml / .xaml.cs      — View (declarative XAML bindings, auto-scroll helper)
   Converters/
@@ -77,6 +77,6 @@ RobocopyHelper/
 ## Building from source
 
 ```bash
-dotnet build RobocopyHelper/RobocopyHelper.csproj
-dotnet run --project RobocopyHelper/RobocopyHelper.csproj
+dotnet build RobocopyInterface/RobocopyInterface.csproj
+dotnet run --project RobocopyInterface/RobocopyInterface.csproj
 ```

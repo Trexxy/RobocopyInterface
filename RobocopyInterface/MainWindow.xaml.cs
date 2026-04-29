@@ -1,7 +1,7 @@
-using RobocopyHelper.ViewModels;
+using RobocopyInterface.ViewModels;
 using System.Windows;
 
-namespace RobocopyHelper;
+namespace RobocopyInterface;
 
 public partial class MainWindow : Window
 {

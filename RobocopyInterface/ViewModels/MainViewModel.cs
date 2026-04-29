@@ -1,11 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using RobocopyHelper.Services;
+using RobocopyInterface.Services;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 using System.Text;
 
-namespace RobocopyHelper.ViewModels;
+namespace RobocopyInterface.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
@@ -23,6 +25,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private double _overallProgress;
+
+    [ObservableProperty]
+    private string _overallProgressText = string.Empty;
+
+    [ObservableProperty]
+    private string _overallSizeText = string.Empty;
 
     [ObservableProperty]
     private double _currentFileProgress;
@@ -80,24 +88,38 @@ public partial class MainViewModel : ObservableObject
     {
         IsSyncing = true;
         OverallProgress = 0;
+        OverallProgressText = string.Empty;
+        OverallSizeText = string.Empty;
         CurrentFileProgress = 0;
         CopySpeed = string.Empty;
         _logBuilder.Clear();
         LogText = string.Empty;
         _cts = new CancellationTokenSource();
 
-        var logProgress     = new Progress<string>(AppendLog);
-        var overallProgress = new Progress<double>(value => OverallProgress = value);
-        var fileProgress    = new Progress<double>(value => CurrentFileProgress = value);
-        var speedProgress   = new Progress<string>(value => CopySpeed = value);
+        var sources = (IReadOnlyList<string>)[.. Sources];
+        var (totalFiles, totalBytes) = await Task.Run(() => CountTotalFilesAndBytes(sources));
+        OverallProgressText = $"0 / {totalFiles} files";
+        OverallSizeText = $"0 B / {FormatSize(totalBytes)}";
+
+        var logProgress       = new Progress<string>(AppendLog);
+        var fileCountProgress = new Progress<(int filesDone, int filesTotal, long bytesDone, long bytesTotal)>(p =>
+        {
+            OverallProgress     = p.filesTotal > 0 ? p.filesDone / (double)p.filesTotal * 100 : 0;
+            OverallProgressText = $"{p.filesDone} / {p.filesTotal} files";
+            OverallSizeText     = $"{FormatSize(p.bytesDone)} / {FormatSize(p.bytesTotal)}";
+        });
+        var fileProgress  = new Progress<double>(value => CurrentFileProgress = value);
+        var speedProgress = new Progress<string>(value => CopySpeed = value);
 
         try
         {
             await _runner.RunAsync(
-                [.. Sources],
+                sources,
                 Destination,
+                totalFiles,
+                totalBytes,
                 logProgress,
-                overallProgress,
+                fileCountProgress,
                 fileProgress,
                 speedProgress,
                 _cts.Token);
@@ -115,6 +137,38 @@ public partial class MainViewModel : ObservableObject
             _cts = null;
         }
     }
+
+    private static (int files, long bytes) CountTotalFilesAndBytes(IReadOnlyList<string> sources)
+    {
+        int files = 0;
+        long bytes = 0;
+        foreach (var source in sources)
+        {
+            if (File.Exists(source))
+            {
+                files++;
+                bytes += new FileInfo(source).Length;
+            }
+            else if (Directory.Exists(source))
+            {
+                foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+                {
+                    files++;
+                    try { bytes += new FileInfo(file).Length; } catch { }
+                }
+            }
+        }
+        return (files, bytes);
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024L * 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024 * 1024 * 1024):F1} TB",
+        >= 1024L * 1024 * 1024        => $"{bytes / (1024.0 * 1024 * 1024):F1} GB",
+        >= 1024L * 1024               => $"{bytes / (1024.0 * 1024):F1} MB",
+        >= 1024L                      => $"{bytes / 1024.0:F1} KB",
+        _                             => $"{bytes} B",
+    };
 
     private bool CanStartSync() =>
         !IsSyncing && Sources.Count > 0 && !string.IsNullOrWhiteSpace(Destination);
