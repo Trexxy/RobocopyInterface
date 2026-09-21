@@ -12,9 +12,8 @@
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- Sources label -->
-            <RowDefinition Height="*" MinHeight="80"/>  <!-- Sources list -->
+            <RowDefinition Height="*" MinHeight="140"/>  <!-- Sources list -->
             <RowDefinition Height="Auto"/>   <!-- Add buttons -->
-            <RowDefinition Height="Auto"/>   <!-- Destination row -->
             <RowDefinition Height="2*" MinHeight="120"/> <!-- Log output -->
             <RowDefinition Height="Auto"/>   <!-- Progress + action button -->
         </Grid.RowDefinitions>
@@ -39,20 +38,46 @@
             </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right"
-                                Content="✕"
-                                Width="22" Height="22"
-                                Padding="0"
-                                VerticalAlignment="Center"
-                                Command="{Binding DataContext.RemoveSourceCommand,
-                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                CommandParameter="{Binding}"/>
-                        <TextBlock Text="{Binding}"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,6,0"
-                                   TextTrimming="CharacterEllipsis"/>
-                    </DockPanel>
+                    <Border BorderBrush="#DDDDDD" BorderThickness="0,0,0,1" Padding="4,6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                <Button DockPanel.Dock="Right"
+                                        Content="✕"
+                                        Width="22" Height="22"
+                                        Padding="0"
+                                        VerticalAlignment="Center"
+                                        Command="{Binding DataContext.RemoveSourceCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                                <TextBlock Text="{Binding Source}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,6,0"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+
+                            <DockPanel Grid.Row="1">
+                                <TextBlock Text="→"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,6,0"/>
+                                <Button DockPanel.Dock="Right"
+                                        Content="Browse"
+                                        Command="{Binding DataContext.BrowseTargetCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="10,2"
+                                        Margin="6,0,0,0"/>
+                                <TextBox Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}"
+                                         VerticalContentAlignment="Center"
+                                         Padding="4,2"/>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
@@ -79,25 +104,8 @@
             </StackPanel>
         </DockPanel>
 
-        <!-- Destination row -->
-        <DockPanel Grid.Row="3" Margin="0,0,0,10">
-            <TextBlock Text="Destination"
-                       VerticalAlignment="Center"
-                       Margin="0,0,8,0"/>
-            <Button DockPanel.Dock="Right"
-                    Content="Browse"
-                    Command="{Binding BrowseDestinationCommand}"
-                    IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
-                    Padding="10,4"
-                    Margin="6,0,0,0"/>
-            <TextBox Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}"
-                     IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}"
-                     VerticalContentAlignment="Center"
-                     Padding="4,2"/>
-        </DockPanel>
-
         <!-- Log output -->
-        <GroupBox Grid.Row="4" Header="Output" Margin="0,0,0,10">
+        <GroupBox Grid.Row="3" Header="Output" Margin="0,0,0,10">
             <ScrollViewer x:Name="LogScrollViewer"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Auto">
@@ -114,7 +122,7 @@
         </GroupBox>
 
         <!-- Two progress bars + Start/Cancel button -->
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="4">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>

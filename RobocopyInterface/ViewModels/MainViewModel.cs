@@ -1,8 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using RobocopyInterface.Models;
 using RobocopyInterface.Services;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,15 +18,13 @@ public partial class MainViewModel : ObservableObject
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "RobocopyInterface", "settings.json");
 
-    private record Settings(List<string> Sources, string Destination);
+    internal record SourceTargetRecord(string Source, string Target);
+    internal record Settings(List<SourceTargetRecord> Entries);
 
     private readonly RobocopyRunner _runner;
     private readonly StringBuilder _logBuilder = new();
     private CancellationTokenSource? _cts;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartSyncCommand))]
-    private string _destination = string.Empty;
+    private string _lastUsedTarget = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartSyncCommand))]
@@ -48,7 +48,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _logText = string.Empty;
 
-    public ObservableCollection<string> Sources { get; } = [];
+    public ObservableCollection<SourceTargetEntry> Sources { get; } = [];
 
     public MainViewModel(RobocopyRunner runner)
     {
@@ -57,7 +57,20 @@ public partial class MainViewModel : ObservableObject
         LoadSettings();
     }
 
-    partial void OnDestinationChanged(string value) => SaveSettings();
+    private void AddEntry(SourceTargetEntry entry)
+    {
+        entry.PropertyChanged += Entry_PropertyChanged;
+        Sources.Add(entry);
+    }
+
+    private void Entry_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SourceTargetEntry.Target)) return;
+        if (sender is SourceTargetEntry entry)
+            _lastUsedTarget = entry.Target;
+        StartSyncCommand.NotifyCanExecuteChanged();
+        SaveSettings();
+    }
 
     private void LoadSettings()
     {
@@ -66,9 +79,10 @@ public partial class MainViewModel : ObservableObject
             if (!File.Exists(SettingsPath)) return;
             var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsPath));
             if (settings is null) return;
-            foreach (var s in settings.Sources)
-                Sources.Add(s);
-            Destination = settings.Destination;
+            foreach (var e in settings.Entries)
+                AddEntry(new SourceTargetEntry(e.Source, e.Target));
+            if (settings.Entries.Count > 0)
+                _lastUsedTarget = settings.Entries[^1].Target;
         }
         catch { }
     }
@@ -78,7 +92,8 @@ public partial class MainViewModel : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings([.. Sources], Destination)));
+            var entries = Sources.Select(s => new SourceTargetRecord(s.Source, s.Target)).ToList();
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings(entries)));
         }
         catch { }
     }
@@ -88,7 +103,7 @@ public partial class MainViewModel : ObservableObject
     {
         var dialog = new OpenFolderDialog { Title = "Select folder to sync" };
         if (dialog.ShowDialog() == true)
-            Sources.Add(dialog.FolderName);
+            AddEntry(new SourceTargetEntry(dialog.FolderName, _lastUsedTarget));
     }
 
     [RelayCommand]
@@ -102,22 +117,31 @@ public partial class MainViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             foreach (var file in dialog.FileNames)
-                Sources.Add(file);
+                AddEntry(new SourceTargetEntry(file, _lastUsedTarget));
         }
     }
 
     [RelayCommand]
-    private void RemoveSource(string path) => Sources.Remove(path);
-
-    [RelayCommand]
-    private void ClearSources() => Sources.Clear();
-
-    [RelayCommand]
-    private void BrowseDestination()
+    private void RemoveSource(SourceTargetEntry entry)
     {
-        var dialog = new OpenFolderDialog { Title = "Select destination folder" };
+        entry.PropertyChanged -= Entry_PropertyChanged;
+        Sources.Remove(entry);
+    }
+
+    [RelayCommand]
+    private void ClearSources()
+    {
+        foreach (var entry in Sources)
+            entry.PropertyChanged -= Entry_PropertyChanged;
+        Sources.Clear();
+    }
+
+    [RelayCommand]
+    private void BrowseTarget(SourceTargetEntry entry)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select target folder" };
         if (dialog.ShowDialog() == true)
-            Destination = dialog.FolderName;
+            entry.Target = dialog.FolderName;
     }
 
     [RelayCommand(CanExecute = nameof(CanStartSync))]
@@ -133,8 +157,8 @@ public partial class MainViewModel : ObservableObject
         LogText = string.Empty;
         _cts = new CancellationTokenSource();
 
-        var sources = (IReadOnlyList<string>)[.. Sources];
-        var (totalFiles, totalBytes) = await Task.Run(() => CountTotalFilesAndBytes(sources));
+        var sourcePaths = (IReadOnlyList<string>)[.. Sources.Select(s => s.Source)];
+        var (totalFiles, totalBytes) = await Task.Run(() => CountTotalFilesAndBytes(sourcePaths));
         OverallProgressText = $"0 / {totalFiles} files";
         OverallSizeText = $"0 B / {FormatSize(totalBytes)}";
 
@@ -148,11 +172,12 @@ public partial class MainViewModel : ObservableObject
         var fileProgress  = new Progress<double>(value => CurrentFileProgress = value);
         var speedProgress = new Progress<string>(value => CopySpeed = value);
 
+        var pairs = (IReadOnlyList<(string Source, string Target)>)[.. Sources.Select(s => (s.Source, s.Target))];
+
         try
         {
             await _runner.RunAsync(
-                sources,
-                Destination,
+                pairs,
                 totalFiles,
                 totalBytes,
                 logProgress,
@@ -208,7 +233,7 @@ public partial class MainViewModel : ObservableObject
     };
 
     private bool CanStartSync() =>
-        !IsSyncing && Sources.Count > 0 && !string.IsNullOrWhiteSpace(Destination);
+        !IsSyncing && Sources.Count > 0 && Sources.All(s => !string.IsNullOrWhiteSpace(s.Target));
 
     [RelayCommand]
     private void CancelSync() => _cts?.Cancel();

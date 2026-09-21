@@ -1,6 +1,6 @@
 # RobocopyInterface
 
-A Windows desktop application that provides a graphical interface for [Robocopy](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy), making it easy to sync multiple files and folders to a destination with live progress feedback.
+A Windows desktop application that provides a graphical interface for [Robocopy](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy), making it easy to sync multiple files and folders, each to its own target, with live progress feedback.
 
 ## Requirements
 
@@ -11,8 +11,9 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 ## Features
 
 - Add any number of source **files** and/or **folders** to sync; click **Clear** to remove all sources at once
-- Sources and destination are **remembered between restarts** (saved to `%AppData%\RobocopyInterface\settings.json`)
-- Choose a destination folder via a folder picker dialog
+- Each source has its **own target folder**, editable per row via a textbox or that row's **Browse** button — sync different sources to different places in a single run
+- Newly added sources pre-fill their target with the most recently used target, so adding several sources bound for the same place requires no retyping; each row stays independently editable afterward
+- Sources and their targets are **remembered between restarts** (saved to `%AppData%\RobocopyInterface\settings.json`)
 - Live scrolling log output showing what Robocopy is doing
 - **Two progress bars:**
   - *Overall* — shows `X / Y files` synced in the bar and `A / B` size transferred below the label. Y and B are pre-scanned from all sources before the sync starts. X and A increment live as each file is copied; already-up-to-date (skipped) files are added in a batch at the end of each source using the `Files :` and `Bytes :` counts from Robocopy's summary output.
@@ -23,21 +24,23 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 ## Usage
 
 1. Click **+ Add Folder** or **+ Add File** to add one or more sources. Click **Clear** to remove them all.
-   - Folders are synced recursively into a same-named subfolder inside the destination.
-   - Files are copied directly into the destination folder.
-2. Set the **Destination** by typing a path or clicking **Browse**.
+   - Folders are synced recursively into a same-named subfolder inside their target.
+   - Files are copied directly into their target folder.
+2. For each source row, set its **Target** by typing a path or clicking that row's **Browse** button. New rows pre-fill with the most recently used target — edit as needed per row.
 3. Click **Start Sync**. The log, progress bars, and speed indicator update in real time.
 4. Click **Cancel** to stop the sync at any time.
 
-Sources and destination are saved automatically and restored on next launch.
+Sources and their targets are saved automatically and restored on next launch.
 
 ## How it works
 
-Each source is synced using the following Robocopy command:
+Each source is synced to its own target with the following Robocopy command, run once per source/target pair:
 
 ```
-robocopy "<source>" "<destination>" /E /COPY:D /R:1 /W:1 /NDL
+robocopy "<source>" "<target>" /E /COPY:D /R:1 /W:1 /NDL
 ```
+
+The log marks the start of each pair with `--- Syncing: <source> -> <target> ---`.
 
 | Flag | Effect |
 |---|---|
@@ -61,10 +64,15 @@ RobocopyInterface/
   MainWindow.xaml / .xaml.cs      — View (declarative XAML bindings, auto-scroll helper)
   Converters/
     InverseBoolConverter.cs       — Flips a bool binding (used to disable UI while syncing)
+  Models/
+    SourceTargetEntry.cs          — A single source/target pair; observable Target for two-way binding
   ViewModels/
     MainViewModel.cs              — All UI logic: commands, properties, cancellation
   Services/
-    RobocopyRunner.cs             — Launches Robocopy, reads stdout/stderr, parses progress and speed
+    RobocopyRunner.cs             — Launches Robocopy per source/target pair, reads stdout/stderr, parses progress and speed
+
+RobocopyInterface.Tests/          — NUnit tests for SourceTargetEntry, RobocopyRunner's path resolution,
+                                     settings JSON round-tripping, and MainViewModel's CanStartSync logic
 ```
 
 **Technology choices:**
@@ -76,10 +84,17 @@ RobocopyInterface/
 | Dependency injection | `Microsoft.Extensions.Hosting` generic host |
 | Progress reporting | `IProgress<T>` — thread-safe, no manual `Dispatcher` calls required |
 | Cancellation | `CancellationToken` throughout; kills the Robocopy process tree on cancel |
+| Testing | NUnit (`RobocopyInterface.Tests`) |
 
 ## Building from source
 
 ```bash
 dotnet build RobocopyInterface/RobocopyInterface.csproj
 dotnet run --project RobocopyInterface/RobocopyInterface.csproj
+```
+
+## Running tests
+
+```bash
+dotnet test
 ```

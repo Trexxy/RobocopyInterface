@@ -62,8 +62,7 @@ public class RobocopyRunner
     private IProgress<(int filesDone, int filesTotal, long bytesDone, long bytesTotal)>? _fileCountProgress;
 
     public async Task RunAsync(
-        IReadOnlyList<string> sources,
-        string destination,
+        IReadOnlyList<(string Source, string Target)> sources,
         int totalFiles,
         long totalBytes,
         IProgress<string> logProgress,
@@ -86,7 +85,7 @@ public class RobocopyRunner
         {
             ct.ThrowIfCancellationRequested();
 
-            var source = sources[i];
+            var (source, target) = sources[i];
 
             if (!Path.Exists(source))
             {
@@ -94,26 +93,10 @@ public class RobocopyRunner
                 continue;
             }
 
-            string srcDir, destDir;
-            string? fileFilter = null;
-
-            if (File.Exists(source))
-            {
-                // Single file: copy from its parent directory, filtered to just this file.
-                srcDir = Path.GetDirectoryName(source)!;
-                fileFilter = Path.GetFileName(source);
-                destDir = destination;
-            }
-            else
-            {
-                // Folder: mirror into a same-named subfolder inside destination.
-                srcDir = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                destDir = Path.Combine(destination, Path.GetFileName(srcDir));
-            }
-
+            var (srcDir, destDir, fileFilter) = ResolvePaths(source, target);
             var args = BuildArgs(srcDir, destDir, fileFilter);
 
-            logProgress.Report($"--- Syncing: {source} ---");
+            logProgress.Report($"--- Syncing: {source} -> {target} ---");
             fileProgress.Report(0);
             speedProgress.Report(string.Empty);
             _currentFileBytes = 0;
@@ -133,6 +116,24 @@ public class RobocopyRunner
 
         speedProgress.Report(string.Empty);
         logProgress.Report("--- All done ---");
+    }
+
+    internal static (string SrcDir, string DestDir, string? FileFilter) ResolvePaths(string source, string target)
+    {
+        if (File.Exists(source))
+        {
+            // Single file: copy from its parent directory, filtered to just this file.
+            var srcDir = Path.GetDirectoryName(source)!;
+            var fileFilter = Path.GetFileName(source);
+            return (srcDir, target, fileFilter);
+        }
+        else
+        {
+            // Folder: mirror into a same-named subfolder inside the target.
+            var srcDir = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var destDir = Path.Combine(target, Path.GetFileName(srcDir));
+            return (srcDir, destDir, null);
+        }
     }
 
     private static string BuildArgs(string sourceDir, string destDir, string? fileFilter)
