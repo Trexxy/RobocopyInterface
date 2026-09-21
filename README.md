@@ -67,6 +67,8 @@ RobocopyInterface/
     InverseBoolConverter.cs       — Flips a bool binding (used to disable UI while syncing)
     BoolToVisibilityConverter.cs  — Toggles the Start Sync / Cancel buttons based on IsSyncing
     PercentTextConverter.cs       — Formats the current-file progress as "12.3%" text
+    CountToVisibilityConverter.cs — Toggles the sources list vs. its empty-state placeholder
+    PathTypeToGlyphConverter.cs   — Picks a folder or file glyph for each source row
   Models/
     SourceTargetEntry.cs          — A single source/target pair; observable Target for two-way binding
   ViewModels/
@@ -87,7 +89,7 @@ RobocopyInterface.Tests/          — NUnit tests for SourceTargetEntry, Robocop
 
 | Concern | Choice |
 |---|---|
-| UI framework | WinUI 3 (Windows App SDK) on .NET 10, unpackaged, framework-dependent deployment |
+| UI framework | WinUI 3 (Windows App SDK) on .NET 10, unpackaged, framework-dependent deployment — Mica backdrop, a custom title bar, and card-based Fluent Design layout throughout |
 | MVVM | [CommunityToolkit.Mvvm](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/) — `[ObservableProperty]`, `[RelayCommand]` source generators |
 | Dependency injection | `Microsoft.Extensions.Hosting` generic host |
 | Progress reporting | `IProgress<T>` — thread-safe, no manual dispatcher calls required |

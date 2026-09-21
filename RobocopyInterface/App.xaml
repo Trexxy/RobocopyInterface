@@ -11,6 +11,8 @@
             <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <converters:PercentTextConverter x:Key="PercentTextConverter"/>
+            <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+            <converters:PathTypeToGlyphConverter x:Key="PathTypeToGlyphConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

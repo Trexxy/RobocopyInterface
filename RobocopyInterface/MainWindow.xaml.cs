@@ -1,3 +1,4 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using RobocopyInterface.ViewModels;
 
@@ -9,7 +10,12 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "Robocopy Helper";
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(820, 620));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(880, 660));
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+        AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 
         RootGrid.DataContext = viewModel;
 
