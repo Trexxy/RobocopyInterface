@@ -36,7 +36,7 @@ public class MainViewModelCanStartSyncTests
     [Test]
     public void CanStartSync_NoSources_IsFalse()
     {
-        var vm = new MainViewModel(new RobocopyRunner());
+        var vm = new MainViewModel(new RobocopyRunner(), new FakeFilePickerService());
         vm.Sources.Clear();
 
         Assert.That(vm.StartSyncCommand.CanExecute(null), Is.False);
@@ -45,7 +45,7 @@ public class MainViewModelCanStartSyncTests
     [Test]
     public void CanStartSync_SourceWithBlankTarget_IsFalse()
     {
-        var vm = new MainViewModel(new RobocopyRunner());
+        var vm = new MainViewModel(new RobocopyRunner(), new FakeFilePickerService());
         vm.Sources.Clear();
         vm.Sources.Add(new SourceTargetEntry(@"C:\src"));
 
@@ -55,7 +55,7 @@ public class MainViewModelCanStartSyncTests
     [Test]
     public void CanStartSync_SourceWithTarget_IsTrue()
     {
-        var vm = new MainViewModel(new RobocopyRunner());
+        var vm = new MainViewModel(new RobocopyRunner(), new FakeFilePickerService());
         vm.Sources.Clear();
         vm.Sources.Add(new SourceTargetEntry(@"C:\src", @"C:\dst"));
 
@@ -65,7 +65,7 @@ public class MainViewModelCanStartSyncTests
     [Test]
     public void CanStartSync_OneOfTwoSourcesHasBlankTarget_IsFalse()
     {
-        var vm = new MainViewModel(new RobocopyRunner());
+        var vm = new MainViewModel(new RobocopyRunner(), new FakeFilePickerService());
         vm.Sources.Clear();
         vm.Sources.Add(new SourceTargetEntry(@"C:\src1", @"C:\dst1"));
         vm.Sources.Add(new SourceTargetEntry(@"C:\src2"));

@@ -4,8 +4,9 @@ A Windows desktop application that provides a graphical interface for [Robocopy]
 
 ## Requirements
 
-- Windows 10 or later
+- Windows 10, version 2004 (build 19041) or later
 - [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (Windows Desktop Runtime)
+- [Windows App SDK runtime](https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/downloads) (framework-dependent deployment — install separately if not already present)
 - Robocopy (included with Windows)
 
 ## Features
@@ -64,12 +65,19 @@ RobocopyInterface/
   MainWindow.xaml / .xaml.cs      — View (declarative XAML bindings, auto-scroll helper)
   Converters/
     InverseBoolConverter.cs       — Flips a bool binding (used to disable UI while syncing)
+    BoolToVisibilityConverter.cs  — Toggles the Start Sync / Cancel buttons based on IsSyncing
+    PercentTextConverter.cs       — Formats the current-file progress as "12.3%" text
   Models/
     SourceTargetEntry.cs          — A single source/target pair; observable Target for two-way binding
   ViewModels/
     MainViewModel.cs              — All UI logic: commands, properties, cancellation
   Services/
     RobocopyRunner.cs             — Launches Robocopy per source/target pair, reads stdout/stderr, parses progress and speed
+    IFilePickerService.cs / FilePickerService.cs
+                                   — Wraps the WinUI 3 folder/file pickers (which require a window handle),
+                                     keeping MainViewModel free of any direct WinUI dependency
+    WindowProvider.cs             — Holds the app's single Window instance, resolved after DI construction
+                                     to avoid a circular dependency between MainWindow and FilePickerService
 
 RobocopyInterface.Tests/          — NUnit tests for SourceTargetEntry, RobocopyRunner's path resolution,
                                      settings JSON round-tripping, and MainViewModel's CanStartSync logic
@@ -79,22 +87,26 @@ RobocopyInterface.Tests/          — NUnit tests for SourceTargetEntry, Robocop
 
 | Concern | Choice |
 |---|---|
-| UI framework | WPF on .NET 10 |
+| UI framework | WinUI 3 (Windows App SDK) on .NET 10, unpackaged, framework-dependent deployment |
 | MVVM | [CommunityToolkit.Mvvm](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/) — `[ObservableProperty]`, `[RelayCommand]` source generators |
 | Dependency injection | `Microsoft.Extensions.Hosting` generic host |
-| Progress reporting | `IProgress<T>` — thread-safe, no manual `Dispatcher` calls required |
+| Progress reporting | `IProgress<T>` — thread-safe, no manual dispatcher calls required |
 | Cancellation | `CancellationToken` throughout; kills the Robocopy process tree on cancel |
 | Testing | NUnit (`RobocopyInterface.Tests`) |
 
 ## Building from source
 
+WinUI 3 doesn't support the `AnyCPU` platform, so a platform must always be specified:
+
 ```bash
-dotnet build RobocopyInterface/RobocopyInterface.csproj
-dotnet run --project RobocopyInterface/RobocopyInterface.csproj
+dotnet build -p:Platform=x64
+dotnet run --project RobocopyInterface/RobocopyInterface.csproj -p:Platform=x64
 ```
+
+(`x86` and `ARM64` are also supported.)
 
 ## Running tests
 
 ```bash
-dotnet test
+dotnet test -p:Platform=x64
 ```

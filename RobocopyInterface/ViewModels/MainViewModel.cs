@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
 using RobocopyInterface.Models;
 using RobocopyInterface.Services;
 using System.Collections.ObjectModel;
@@ -22,6 +21,7 @@ public partial class MainViewModel : ObservableObject
     internal record Settings(List<SourceTargetRecord> Entries);
 
     private readonly RobocopyRunner _runner;
+    private readonly IFilePickerService _filePicker;
     private readonly StringBuilder _logBuilder = new();
     private CancellationTokenSource? _cts;
     private string _lastUsedTarget = string.Empty;
@@ -50,9 +50,10 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<SourceTargetEntry> Sources { get; } = [];
 
-    public MainViewModel(RobocopyRunner runner)
+    public MainViewModel(RobocopyRunner runner, IFilePickerService filePicker)
     {
         _runner = runner;
+        _filePicker = filePicker;
         Sources.CollectionChanged += (_, _) => { StartSyncCommand.NotifyCanExecuteChanged(); SaveSettings(); };
         LoadSettings();
     }
@@ -99,26 +100,18 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddFolder()
+    private async Task AddFolderAsync()
     {
-        var dialog = new OpenFolderDialog { Title = "Select folder to sync" };
-        if (dialog.ShowDialog() == true)
-            AddEntry(new SourceTargetEntry(dialog.FolderName, _lastUsedTarget));
+        var folder = await _filePicker.PickFolderAsync("Select folder to sync");
+        if (folder is not null)
+            AddEntry(new SourceTargetEntry(folder, _lastUsedTarget));
     }
 
     [RelayCommand]
-    private void AddFile()
+    private async Task AddFileAsync()
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Select files to sync",
-            Multiselect = true,
-        };
-        if (dialog.ShowDialog() == true)
-        {
-            foreach (var file in dialog.FileNames)
-                AddEntry(new SourceTargetEntry(file, _lastUsedTarget));
-        }
+        foreach (var file in await _filePicker.PickFilesAsync("Select files to sync"))
+            AddEntry(new SourceTargetEntry(file, _lastUsedTarget));
     }
 
     [RelayCommand]
@@ -137,11 +130,11 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void BrowseTarget(SourceTargetEntry entry)
+    private async Task BrowseTargetAsync(SourceTargetEntry entry)
     {
-        var dialog = new OpenFolderDialog { Title = "Select target folder" };
-        if (dialog.ShowDialog() == true)
-            entry.Target = dialog.FolderName;
+        var folder = await _filePicker.PickFolderAsync("Select target folder");
+        if (folder is not null)
+            entry.Target = folder;
     }
 
     [RelayCommand(CanExecute = nameof(CanStartSync))]
