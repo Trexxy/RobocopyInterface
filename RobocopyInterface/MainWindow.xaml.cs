@@ -10,12 +10,14 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "Robocopy Helper";
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(880, 660));
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(900, 820));
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
         AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        AppWindow.TitleBar.ButtonForegroundColor = Colors.Black;
+        AppWindow.TitleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(20, 0, 0, 0);
 
         RootGrid.DataContext = viewModel;
 

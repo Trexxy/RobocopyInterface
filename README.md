@@ -89,7 +89,7 @@ RobocopyInterface.Tests/          — NUnit tests for SourceTargetEntry, Robocop
 
 | Concern | Choice |
 |---|---|
-| UI framework | WinUI 3 (Windows App SDK) on .NET 10, unpackaged, framework-dependent deployment — Mica backdrop, a custom title bar, and card-based Fluent Design layout throughout |
+| UI framework | WinUI 3 (Windows App SDK) on .NET 10, unpackaged, framework-dependent deployment — a custom title bar and a light, card-based UI with a purple accent, inspired by modern SaaS dashboards |
 | MVVM | [CommunityToolkit.Mvvm](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/) — `[ObservableProperty]`, `[RelayCommand]` source generators |
 | Dependency injection | `Microsoft.Extensions.Hosting` generic host |
 | Progress reporting | `IProgress<T>` — thread-safe, no manual dispatcher calls required |
